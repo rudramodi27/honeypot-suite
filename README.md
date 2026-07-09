@@ -35,6 +35,7 @@ Advanced Multi-Service Cybersecurity Honeypot with Real-Time Attack Monitoring
 - [Project Layout](#project-layout)
 - [Known Limitations](#known-limitations--honest-caveats)
 - [License](#license--usage)
+
 A multi-protocol honeypot platform that captures, classifies, and exports
 attacker behavior for threat-intelligence consumption — by a SOC team, a
 CERT, or an automated detection pipeline.
