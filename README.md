@@ -171,7 +171,7 @@ pytest tests/ -v --cov=. --cov-report=html
 SQLi, reverse shells), STIX bundle structure, and config loading with
 environment-variable overrides.
 
-## Infrastructure hardening (v2.1)
+## Infrastructure hardening (v1.1)
 
 A separate hardening pass added network segregation, systemd/container
 security contexts, RBAC/IAM, secrets management, centralized logging with
