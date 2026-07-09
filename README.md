@@ -50,6 +50,31 @@ attacker behavior...
 - Docker Deployment
 - SQLite Database
 - Threat Intelligence Pipeline
+  ## 📸 Dashboard Preview
+
+### Overview Dashboard
+
+<p align="center">
+  <img src="assets/dashboard.png" width="100%">
+</p>
+
+### Events
+
+<p align="center">
+  <img src="assets/events.png" width="100%">
+</p>
+
+### Attack Map
+
+<p align="center">
+  <img src="assets/attack-map.png" width="100%">
+</p>
+
+### MITRE ATT&CK Mapping
+
+<p align="center">
+  <img src="assets/mitre-attack.png" width="100%">
+</p>
 
 ## Why this exists
 
