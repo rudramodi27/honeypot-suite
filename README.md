@@ -17,6 +17,18 @@ Advanced Multi-Service Cybersecurity Honeypot with Real-Time Attack Monitoring
 ![Status](https://img.shields.io/badge/Status-Active-success)
 
 </p>
+<p align="center">
+
+<img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
+<img src="https://img.shields.io/badge/Flask-Web_Framework-000000?logo=flask">
+<img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white">
+<img src="https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite">
+<img src="https://img.shields.io/badge/MITRE-ATT%26CK-red">
+<img src="https://img.shields.io/badge/YARA-Malware-orange">
+<img src="https://img.shields.io/badge/STIX-2.1-success">
+<img src="https://img.shields.io/badge/License-MIT-green">
+
+</p>
 A multi-protocol honeypot platform that captures, classifies, and exports
 attacker behavior for threat-intelligence consumption — by a SOC team, a
 CERT, or an automated detection pipeline.
