@@ -1,4 +1,4 @@
-# Advanced Honeypot Suite v1.0
+# Honeypot Suite
 
 A multi-protocol honeypot platform that captures, classifies, and exports
 attacker behavior for threat-intelligence consumption — by a SOC team, a
@@ -56,9 +56,9 @@ three integration points at startup — `logger.log()`,
 write into the database and push to the live dashboard, without
 requiring changes to every call site across the codebase.
 
-## What's new in v2.0
+## What's new in v1.0.0
 
-| Area | v1.0 (original) | v2.0 (this upgrade) |
+| Area | v1.0 (original) | v1.0.0 (this upgrade) |
 |---|---|---|
 | UI | Tkinter desktop GUI, one machine only | Browser-based dashboard, any device on the network |
 | Storage | Per-service JSON line logs | SQLite (swappable to Postgres) via SQLAlchemy, with indexed queries |
