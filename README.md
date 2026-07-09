@@ -1,4 +1,4 @@
-# Advanced Honeypot Suite v2.0
+# Advanced Honeypot Suite v1.0
 
 A multi-protocol honeypot platform that captures, classifies, and exports
 attacker behavior for threat-intelligence consumption — by a SOC team, a
