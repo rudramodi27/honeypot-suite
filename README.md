@@ -31,7 +31,29 @@ data, maps observed behavior to MITRE ATT&CK techniques, scans uploaded
 files with YARA, and exposes everything through a live web dashboard and
 a REST API. Findings can be exported as STIX 2.1 bundles for sharing with
 CERTs, ISACs, or any TAXII-compatible platform.
+A multi-protocol honeypot platform that captures, classifies, and exports
+attacker behavior...
 
+## ✨ Features
+
+- Multi-Service Honeypot (SSH, HTTP, FTP)
+- Interactive Decoy Services
+- Real-Time SOC Dashboard
+- Live Attack Map
+- GeoIP & ASN Mapping
+- MITRE ATT&CK Mapping
+- YARA Malware Scanning
+- Evidence Hashing (SHA-256)
+- Chain of Custody Tracking
+- STIX 2.1 Export
+- REST API
+- Docker Deployment
+- SQLite Database
+- Threat Intelligence Pipeline
+
+## Why this exists
+
+Most student/hobby honeypot projects...
 ## Why this exists
 
 Most student/hobby honeypot projects stop at "log attacker IPs to a text
