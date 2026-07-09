@@ -11,14 +11,6 @@ Advanced Multi-Service Cybersecurity Honeypot with Real-Time Attack Monitoring
 
 <p align="center">
 
-![Python](https://img.shields.io/badge/Python-3.11-blue)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey)
-![Status](https://img.shields.io/badge/Status-Active-success)
-
-</p>
-<p align="center">
-
 <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
 <img src="https://img.shields.io/badge/Flask-Web_Framework-000000?logo=flask">
 <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white">
