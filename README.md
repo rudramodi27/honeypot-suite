@@ -21,6 +21,20 @@ Advanced Multi-Service Cybersecurity Honeypot with Real-Time Attack Monitoring
 <img src="https://img.shields.io/badge/License-MIT-green">
 
 </p>
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Dashboard Preview](#-dashboard-preview)
+- [Why this exists](#why-this-exists)
+- [Architecture](#architecture)
+- [Installation](#quick-start)
+- [Configuration](#configuration)
+- [Database Schema](#database-schema)
+- [STIX Export](#stix-export)
+- [Testing](#testing)
+- [Project Layout](#project-layout)
+- [Known Limitations](#known-limitations--honest-caveats)
+- [License](#license--usage)
 A multi-protocol honeypot platform that captures, classifies, and exports
 attacker behavior for threat-intelligence consumption — by a SOC team, a
 CERT, or an automated detection pipeline.
@@ -78,15 +92,8 @@ attacker behavior...
 
 ## Why this exists
 
-Most student/hobby honeypot projects...
-## Why this exists
+Unlike many introductory honeypot implementations that primarily log attacker activity, Honeypot Suite provides a broader defensive security platform featuring threat intelligence, MITRE ATT&CK mapping, malware analysis, evidence management, and a real-time SOC dashboard.
 
-Most student/hobby honeypot projects stop at "log attacker IPs to a text
-file." This one is built to the bar of an actual SOC tool: a real
-database instead of grep-able logs, a browser dashboard instead of a
-desktop GUI tied to one machine, industry-standard detection (YARA,
-MITRE ATT&CK) instead of ad-hoc string matching, and a threat-intel
-export format (STIX 2.1) that downstream platforms can actually ingest.
 
 ## Architecture
 
@@ -239,7 +246,7 @@ pytest tests/ -v --cov=. --cov-report=html
 SQLi, reverse shells), STIX bundle structure, and config loading with
 environment-variable overrides.
 
-## Infrastructure hardening (v1.1)
+## Infrastructure Hardening
 
 A separate hardening pass added network segregation, systemd/container
 security contexts, RBAC/IAM, secrets management, centralized logging with
@@ -290,9 +297,28 @@ Dockerfile / docker-compose.yml   Container deployment
   `docker` Python package and a mounted Docker socket — disabled by
   default in `config.yaml` (`sandbox.enabled: false`) since it needs
   privileged access most CI/cloud environments won't grant by default.
+  ## 🚀 Roadmap
+
+- [ ] SIEM Integration
+- [ ] Sigma Rule Support
+- [ ] Elastic Stack Integration
+- [ ] Suricata Integration
+- [ ] Zeek Integration
+- [ ] Threat Feed APIs
+- [ ] REST API Authentication
+- [ ] Kubernetes Deployment
+- [ ] Docker Swarm Support
+- [ ] Cloud Deployment
 
 ## License / usage
 
 Authorized research, education, and defensive security use only. Do not
 deploy against systems or networks you don't own or have explicit
 permission to monitor.
+---
+
+<p align="center">
+
+Built for defensive security research, education, and SOC portfolio demonstration.
+
+</p>
