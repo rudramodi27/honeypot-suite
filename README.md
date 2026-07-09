@@ -2,7 +2,16 @@
 <p align="center">
   <img src="assets/banner.png" alt="Honeypot Suite Banner" width="100%">
 </p>
+## 🚀 Highlights
 
+- 🔐 Multi-Service Honeypot (SSH, HTTP, FTP, HTTPS)
+- 🌍 Real-Time Global Attack Map
+- 🎯 MITRE ATT&CK Mapping
+- 🦠 YARA Malware Detection
+- 📦 STIX 2.1 Threat Intelligence Export
+- 🔒 Evidence Hashing & Chain of Custody
+- 📊 Real-Time SOC Dashboard
+- 🐳 Docker Ready
 <h1 align="center">Honeypot Suite</h1>
 
 <p align="center">
