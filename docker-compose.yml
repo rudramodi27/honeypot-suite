@@ -1,0 +1,124 @@
+version: "3.9"
+
+# =====================================================================
+# Advanced Honeypot Suite — Docker Compose
+# =====================================================================
+# Usage:
+#   docker-compose up -d               # start all services
+#   docker-compose logs -f honeypot    # follow logs
+#   docker-compose down                # stop all
+#   docker-compose exec honeypot bash  # shell into container
+#
+# Ports exposed on HOST:
+#   2222  → SSH honeypot
+#   8080  → HTTP honeypot
+#   2121  → FTP honeypot
+#   3306  → MySQL decoy
+#   6379  → Redis decoy
+#   9200  → Elasticsearch decoy
+#   5000  → Web dashboard
+#   8081  → Admin panel decoy
+# =====================================================================
+
+services:
+
+  # ── Main Honeypot Suite ──────────────────────────────────────
+  honeypot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: honeypot-suite
+    restart: unless-stopped
+    environment:
+      # Override config.yaml values via ENV
+      HONEYPOT__DASHBOARD__HOST: "0.0.0.0"
+      HONEYPOT__DASHBOARD__PORT: "5000"
+      HONEYPOT__DATABASE__URL: "sqlite:////data/honeypot.db"
+      HONEYPOT__LOGGING__LEVEL: "INFO"
+      # Secrets (override in .env file or CI/CD secrets)
+      HONEYPOT__DASHBOARD__SECRET_KEY: "${DASHBOARD_SECRET_KEY:-change_me_in_prod}"
+      HONEYPOT__DASHBOARD__PASSWORD_HASH: "${DASHBOARD_PASSWORD_HASH:-}"
+      # API Keys (optional)
+      HONEYPOT__THREAT_INTEL__ABUSEIPDB__API_KEY: "${ABUSEIPDB_KEY:-}"
+      HONEYPOT__THREAT_INTEL__VIRUSTOTAL__API_KEY: "${VT_KEY:-}"
+    ports:
+      - "2222:2222"     # SSH honeypot
+      - "8080:8080"     # HTTP honeypot
+      - "2121:2121"     # FTP honeypot
+      - "3306:3306"     # MySQL decoy
+      - "6379:6379"     # Redis decoy
+      - "9200:9200"     # Elasticsearch decoy
+      - "2525:2525"     # SMTP decoy
+      - "8081:8081"     # Admin panel decoy
+      - "5000:5000"     # Web dashboard
+    volumes:
+      - honeypot-data:/data           # persistent DB + logs
+      - ./yara_rules:/app/yara_rules  # YARA rules (hot-reload)
+      - ./exports:/app/exports        # STIX/PDF exports
+      - ./config.yaml:/app/config.yaml:ro
+    networks:
+      - honeypot-net
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp:size=64m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── Log Aggregator (optional ELK integration) ────────────────
+  # Uncomment to ship logs to your own ELK stack
+  # filebeat:
+  #   image: docker.elastic.co/beats/filebeat:8.12.0
+  #   container_name: honeypot-filebeat
+  #   user: root
+  #   volumes:
+  #     - honeypot-data:/data:ro
+  #     - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+  #   networks:
+  #     - honeypot-net
+  #   depends_on:
+  #     - honeypot
+
+  # ── Nginx Reverse Proxy (for HTTPS dashboard) ────────────────
+  # Uncomment for production HTTPS deployment
+  # nginx:
+  #   image: nginx:1.25-alpine
+  #   container_name: honeypot-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./certs:/etc/nginx/certs:ro
+  #   networks:
+  #     - honeypot-net
+  #   depends_on:
+  #     - honeypot
+
+volumes:
+  honeypot-data:
+    driver: local
+
+networks:
+  honeypot-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24

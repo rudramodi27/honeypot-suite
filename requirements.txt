@@ -1,0 +1,64 @@
+# =====================================================================
+# Advanced Honeypot Suite — Python Dependencies
+# =====================================================================
+
+# ── Core honeypot ─────────────────────────────────────────────
+paramiko>=3.4.0          # SSH honeypot
+cryptography>=42.0.0     # Crypto for SSH keys
+
+# ── Web dashboard ─────────────────────────────────────────────
+flask>=3.0.0             # Web framework
+flask-socketio>=5.3.6    # Real-time WebSocket
+python-socketio>=5.11.0  # SocketIO backend
+eventlet>=0.35.0         # Async server for SocketIO
+werkzeug>=3.0.0          # Password hashing, utilities
+
+# ── Database ──────────────────────────────────────────────────
+sqlalchemy>=2.0.0        # ORM
+# Optional: uncomment for PostgreSQL support
+# psycopg2-binary>=2.9.9
+
+# ── Configuration ─────────────────────────────────────────────
+pyyaml>=6.0.1            # YAML config loader
+
+# ── Threat intelligence ───────────────────────────────────────
+requests>=2.31.0         # HTTP client for API calls
+urllib3>=2.1.0           # HTTP internals
+
+# ── YARA malware detection ────────────────────────────────────
+# Install yara-python separately (needs libyara):
+# Ubuntu: sudo apt install libssl-dev python3-dev && pip install yara-python
+# or:     pip install yara-python
+yara-python>=4.3.1; platform_system != "Windows"
+
+# ── STIX threat intelligence ──────────────────────────────────
+# stix2>=3.0.1           # optional: official STIX library (we use our own impl)
+# taxii2-client>=2.3.0   # optional: TAXII push support
+
+# ── Report generation ─────────────────────────────────────────
+reportlab>=4.1.0         # PDF reports
+
+# ── Notification backends ─────────────────────────────────────
+# python-telegram-bot>=20.0  # Telegram alerts (optional)
+
+# ── IP geolocation ────────────────────────────────────────────
+# geoip2>=4.7.0          # MaxMind GeoIP2 (optional, needs DB file)
+# maxminddb>=2.5.0
+
+# ── Utilities ─────────────────────────────────────────────────
+python-dateutil>=2.9.0   # Date parsing
+tabulate>=0.9.0          # Table formatting in CLI
+
+# ── Timezone data ─────────────────────────────────────────────
+# Windows Python ships with NO IANA timezone database at all, so
+# zoneinfo.ZoneInfo(...) raises ZoneInfoNotFoundError there unless this
+# is installed. Linux/macOS usually already have system tzdata, but
+# installing this package is harmless there too (Python prefers it when
+# present) and keeps behavior identical across all three platforms.
+tzdata>=2024.1; sys_platform == "win32"
+tzdata>=2024.1; sys_platform == "darwin"
+
+# ── Dev / testing ─────────────────────────────────────────────
+pytest>=8.0.0
+pytest-cov>=5.0.0
+black>=24.0.0

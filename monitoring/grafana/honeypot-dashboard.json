@@ -1,0 +1,190 @@
+{
+  "_comment": "monitoring/grafana/honeypot-dashboard.json — NOT imported into a live Grafana instance in this exercise (no Grafana server available in this build environment). Validated for JSON correctness and against Grafana's documented dashboard schema (schemaVersion 39, Grafana 10.x+) only. Import via Dashboards > Import > Upload JSON, then point the datasource UID at your real Elasticsearch/Postgres datasource — the placeholder UID below will not resolve until you do.",
+  "title": "Honeypot Suite — SOC Overview",
+  "uid": "honeypot-soc-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "tags": ["honeypot", "security", "soc"],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Events (24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        { "query": "*", "metrics": [{ "type": "count", "id": "1" }], "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" } } }
+    },
+    {
+      "id": 2,
+      "title": "Unique Attacking IPs (24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        { "query": "*", "metrics": [{ "type": "cardinality", "field": "src_ip", "id": "1" }], "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "blue", "mode": "fixed" } } }
+    },
+    {
+      "id": 3,
+      "title": "Critical Alerts (24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        { "query": "severity:CRITICAL", "metrics": [{ "type": "count", "id": "1" }], "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "_comment_alert_threshold": "alert_threshold: 5 — matches config.yaml's alerting thresholds; this panel goes red at the same count that triggers a real alert_system.py notification, so the dashboard visually agrees with what actually paged someone."
+    },
+    {
+      "id": 4,
+      "title": "Malware Samples Captured (24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        { "query": "log_type:honeypot_event AND event:*UPLOAD*", "metrics": [{ "type": "count", "id": "1" }], "refId": "A" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Events Over Time by Service",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        {
+          "query": "*",
+          "metrics": [{ "type": "count", "id": "1" }],
+          "bucketAggs": [
+            { "type": "terms", "field": "service", "id": "2" },
+            { "type": "date_histogram", "field": "@timestamp", "id": "3" }
+          ],
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Top 10 Attacking IPs",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        {
+          "query": "*",
+          "metrics": [{ "type": "count", "id": "1" }],
+          "bucketAggs": [{ "type": "terms", "field": "src_ip", "size": 10, "id": "2" }],
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Severity Breakdown",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        {
+          "query": "*",
+          "metrics": [{ "type": "count", "id": "1" }],
+          "bucketAggs": [{ "type": "terms", "field": "severity", "id": "2" }],
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Top Countries (GeoIP)",
+      "type": "geomap",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 12 },
+      "datasource": { "type": "elasticsearch", "uid": "${DS_ELASTICSEARCH}" },
+      "targets": [
+        {
+          "query": "*",
+          "metrics": [{ "type": "count", "id": "1" }],
+          "bucketAggs": [{ "type": "terms", "field": "geoip.country_name", "size": 25, "id": "2" }],
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "MITRE ATT&CK Techniques (Top 15)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRES}" },
+      "targets": [
+        {
+          "rawSql": "SELECT technique_id, technique, tactic, COUNT(*) as hits FROM mitre_events WHERE timestamp > NOW() - INTERVAL '24 hours' GROUP BY technique_id, technique, tactic ORDER BY hits DESC LIMIT 15",
+          "format": "table",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Alert Volume vs alert_threshold",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRES}" },
+      "targets": [
+        {
+          "rawSql": "SELECT date_trunc('hour', timestamp) as time, COUNT(*) as alert_count FROM alerts WHERE timestamp > NOW() - INTERVAL '24 hours' GROUP BY 1 ORDER BY 1",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "thresholdsStyle": { "mode": "line" }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "_comment": "Horizontal threshold line at 5 = config.yaml's alerting.min_severity escalation point; same alert_threshold:5 referenced in panel 3."
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "DS_ELASTICSEARCH",
+        "type": "datasource",
+        "query": "elasticsearch",
+        "current": { "text": "Elasticsearch", "value": "REPLACE_WITH_REAL_DATASOURCE_UID" }
+      },
+      {
+        "name": "DS_POSTGRES",
+        "type": "datasource",
+        "query": "postgres",
+        "current": { "text": "PostgreSQL", "value": "REPLACE_WITH_REAL_DATASOURCE_UID" }
+      }
+    ]
+  }
+}

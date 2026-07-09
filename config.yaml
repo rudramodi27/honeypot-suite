@@ -1,0 +1,223 @@
+# ============================================================
+# Advanced Honeypot Suite — Master Configuration
+# ============================================================
+
+# ── Server Identity ──────────────────────────────────────────
+identity:
+  hostname: "srv-prod-01.internal"
+  organization: "SecOps Team"
+  deployment_env: "production"        # production | lab | research
+
+# ── Service Ports ────────────────────────────────────────────
+services:
+  ssh:
+    enabled: true
+    port: 2222
+    banner: "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"
+    max_connections: 100
+    auth_delay_min: 0.5              # seconds — realistic auth delay
+    auth_delay_max: 2.0
+
+  http:
+    enabled: true
+    port: 8080
+    banner: "Apache/2.4.57 (Ubuntu)"
+    session_timeout: 1800
+
+  ftp:
+    enabled: true
+    port: 2121
+    banner: "220 ProFTPD 1.3.5e Server (LCF FTP) [::ffff:192.168.1.10]"
+
+  decoys:
+    mysql:
+      enabled: true
+      port: 3306
+    redis:
+      enabled: true
+      port: 6379
+    smtp:
+      enabled: true
+      port: 2525
+    dns:
+      enabled: true
+      port: 5353
+    https:
+      enabled: true
+      port: 8443
+    admin_panel:
+      enabled: true
+      port: 8081
+    elasticsearch:
+      enabled: true
+      port: 9200
+
+# ── Web Dashboard ────────────────────────────────────────────
+dashboard:
+  enabled: true
+  host: "0.0.0.0"
+  port: 5000
+  secret_key: "CHANGE_ME_IN_PRODUCTION_USE_RANDOM_32_BYTES"
+  username: "admin"
+  password_hash: ""                  # set via: python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('yourpassword'))"
+  tls_enabled: false
+  tls_cert: "certs/dashboard.crt"
+  tls_key:  "certs/dashboard.key"
+  refresh_interval: 5               # seconds
+
+# ── Display Preferences ──────────────────────────────────────
+# All timestamps are stored in UTC (see database.py) for consistency
+# across services, exports, and evidentiary records. This setting only
+# controls how timestamps are *displayed* on the dashboard/reports.
+display:
+  timezone: "Asia/Kolkata"           # IANA tz name, e.g. "Asia/Kolkata", "UTC", "America/New_York"
+  # Private/local IPs (127.0.0.1, 10.x, 192.168.x, etc.) have no real
+  # geolocation. When true, the Attack Map plots them at a fixed point
+  # instead of dropping them, labeled clearly so it's never confused
+  # with a real attacker location.
+  map_dev_mode: true
+  dev_coordinates:
+    lat: 23.0225
+    lng: 72.5714
+    label: "Local Test Environment"
+
+
+# ── Database ─────────────────────────────────────────────────
+database:
+  url: "sqlite:///honeypot.db"      # swap to postgresql://user:pass@host/db for prod
+  pool_size: 10
+  echo: false
+
+# ── Threat Intelligence APIs ─────────────────────────────────
+threat_intel:
+  abuseipdb:
+    enabled: false
+    api_key: ""                      # https://www.abuseipdb.com/
+    confidence_threshold: 50
+  virustotal:
+    enabled: false
+    api_key: ""                      # https://www.virustotal.com/
+  shodan:
+    enabled: false
+    api_key: ""                      # https://shodan.io/
+  ipapi:
+    enabled: true
+    fallback_enabled: true
+  cache_ttl: 3600                    # seconds before re-fetching IP intel
+
+# ── YARA Rules ───────────────────────────────────────────────
+yara:
+  enabled: true
+  rules_dir: "yara_rules/"
+  scan_uploads: true
+  scan_commands: true
+
+# ── Alerting ─────────────────────────────────────────────────
+alerting:
+  min_severity: "MEDIUM"            # LOW | MEDIUM | HIGH | CRITICAL
+
+  # Wired into alert_system.py's brute-force tracker (was hardcoded as
+  # BRUTE_THRESHOLD=5 / BRUTE_WINDOW=120 before this hardening pass —
+  # now reads from here, with those same values as the fallback default
+  # if this file or config_loader is unavailable for any reason).
+  brute_force_threshold: 5          # failed attempts within the window before alerting
+  brute_force_window_seconds: 120   # rolling window for the count above
+
+  # Honeypot-wide alert volume threshold — used by the Grafana
+  # dashboard (monitoring/grafana/honeypot-dashboard.json, panel
+  # "Critical Alerts") to color-threshold the same number this
+  # config drives, so the dashboard and the actual alerting pipeline
+  # never visually disagree about what counts as "a lot" of alerts.
+  alert_threshold: 5
+
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    use_tls: true
+    username: ""
+    password: ""
+    from_addr: ""
+    to_addrs: []
+
+  telegram:
+    enabled: false
+    bot_token: ""
+    chat_id: ""
+
+  slack:
+    enabled: false
+    webhook_url: ""
+
+  webhook:
+    enabled: false
+    url: ""
+    headers: {}
+    verify_ssl: true
+
+# ── STIX / Threat Intel Sharing ─────────────────────────────
+stix:
+  enabled: true
+  identity_name: "Honeypot Suite"
+  identity_class: "system"
+  tlp_level: "white"                # white | green | amber | red
+  auto_export: false
+  export_interval: 3600             # seconds
+
+# ── Rate Limiting & Deception ───────────────────────────────
+deception:
+  tarpit_enabled: true              # slow down scanners
+  tarpit_delay: 30                  # seconds to hold connection
+  max_attempts_before_tarpit: 5
+  fake_data_rotate: true            # rotate fake credentials/data periodically
+
+# ── Logging ──────────────────────────────────────────────────
+logging:
+  level: "INFO"                     # DEBUG | INFO | WARNING | ERROR
+  json_format: true
+  log_dir: "logs/"
+  master_log: "logs/honeypot_master.log"
+  max_file_size_mb: 100
+  backup_count: 10
+  syslog:
+    enabled: false
+    host: "localhost"
+    port: 514
+    protocol: "UDP"                 # UDP | TCP
+  elk:
+    enabled: false
+    logstash_url: ""
+
+# ── Docker Sandbox ──────────────────────────────────────────
+sandbox:
+  enabled: false
+  image: "cowrie/cowrie:latest"
+  memory_limit: "256m"
+  cpu_limit: "0.5"
+  network_mode: "none"
+  auto_cleanup: true
+
+# ── Report Generation ────────────────────────────────────────
+reports:
+  auto_generate: false
+  schedule: "0 6 * * *"            # cron expression — 6 AM daily
+  output_dir: "exports/"
+  formats:
+    - "pdf"
+    - "json"
+    - "stix"
+  recipients: []
+
+# ── Evidence Signing (Phase 1C) ──────────────────────────────
+signing:
+  auto_sign: true             # sign every evidence file on registration
+  algorithm: "ed25519"        # ed25519 | rsa4096
+  keys_dir: "keys/"
+  auto_generate_key: true     # generate a keypair on first run if none exists
+
+# ── Evidence Signing (Phase 1C) ──────────────────────────────
+signing:
+  auto_sign: true             # sign every evidence file on registration
+  algorithm: "ed25519"        # ed25519 | rsa4096
+  keys_dir: "keys/"
+  auto_generate_key: true     # generate a keypair on first run if none exists

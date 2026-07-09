@@ -1,0 +1,139 @@
+# =====================================================================
+# deploy/k8s/20-rbac.yaml
+# Least-privilege RBAC for human operators and the in-cluster
+# enrichment-worker ServiceAccount. NOT applied against a live cluster
+# in this exercise — same caveat as the other manifests in this dir.
+# =====================================================================
+
+# ── ServiceAccount for the enrichment worker ─────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: enrichment-worker
+  namespace: honeypot
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: enrichment-worker-role
+  namespace: honeypot
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["honeypot-threat-intel-keys"]
+    verbs: ["get"]                       # read-only, single named secret — not list/watch on all secrets
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: enrichment-worker-binding
+  namespace: honeypot
+subjects:
+  - kind: ServiceAccount
+    name: enrichment-worker
+    namespace: honeypot
+roleRef:
+  kind: Role
+  name: enrichment-worker-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ── Human operator roles ─────────────────────────────────────────────
+# soc-viewer: read-only — dashboards, logs, pod status. No secrets access,
+# no exec into pods, no edit of any resource.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: honeypot-soc-viewer
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "events", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  # explicitly NOT granted: secrets, exec, configmaps with credentials,
+  # delete/edit on anything
+---
+# soc-operator: viewer permissions + can restart/scale honeypot
+# deployments and read (not write) config — the day-to-day SOC role.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: honeypot-soc-operator
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "events", "pods/log", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch", "patch"]   # patch = scale/restart, not full edit
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]                          # break-glass shell access — pair with audit logging + MFA at the IdP layer (see note below)
+---
+# admin: full control within the honeypot namespace ONLY (not
+# cluster-wide) — secrets, deletes, RBAC changes for this namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: honeypot-admin
+  namespace: honeypot
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+# ── Bindings — replace the `name:` / `subjects` below with your real
+#    IdP-backed group (e.g. OIDC group claim) rather than individual
+#    usernames, so access changes happen by group membership in your
+#    identity provider, not by editing this file per-hire/per-leaver. ──
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: honeypot-soc-viewers-binding
+subjects:
+  - kind: Group
+    name: "oidc:soc-viewers"          # maps to an IdP group; MFA is enforced at the IdP (Okta/Azure AD/etc.), not by Kubernetes itself
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: honeypot-soc-viewer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: honeypot-soc-operators-binding
+subjects:
+  - kind: Group
+    name: "oidc:soc-operators"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: honeypot-soc-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: honeypot-admins-binding
+  namespace: honeypot
+subjects:
+  - kind: Group
+    name: "oidc:honeypot-admins"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: honeypot-admin
+  apiGroup: rbac.authorization.k8s.io
+
+# =====================================================================
+# MFA NOTE: Kubernetes RBAC controls AUTHORIZATION (what an authenticated
+# identity can do), not AUTHENTICATION (proving who they are). MFA has
+# to be enforced upstream, at whichever identity provider issues the
+# OIDC tokens kubectl/the API server trust (Okta, Azure AD, Google
+# Workspace, Keycloak, etc.) — there is no `kind: MFAPolicy` in the
+# Kubernetes API. Configure MFA enforcement in that IdP for the
+# soc-viewers / soc-operators / honeypot-admins groups referenced above.
+# =====================================================================

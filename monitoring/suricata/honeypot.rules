@@ -1,0 +1,87 @@
+# =====================================================================
+# monitoring/suricata/honeypot.rules
+# Custom Suricata rules for the honeypot subnet — complement (not
+# replace) the application-level detection already in
+# yara_scanner.py and mitre_attack.py by catching things at the
+# network layer before a payload even reaches the Python listener.
+#
+# NOT validated against a running Suricata instance in this exercise
+# (no Suricata binary available in this build environment) — checked
+# against documented Suricata 7.x rule syntax only. Run
+# `suricata -T -c suricata.yaml -S honeypot.rules` against your real
+# install before deploying; SIDs below (9000000+) are in the
+# user-defined range per Suricata's SID allocation convention, but
+# verify they don't collide with any other custom rules you maintain.
+# =====================================================================
+
+# ── Reconnaissance: TCP SYN scan against multiple honeypot ports
+#    from the same source in a short window ─────────────────────────
+alert tcp any any -> $HONEYPOT_NET [2222,8080,2121,3306,6379,9200] (
+    msg:"HONEYPOT Recon - Multi-port SYN scan against honeypot subnet";
+    flow:stateless;
+    flags:S;
+    threshold:type both, track by_src, count 4, seconds 30;
+    classtype:attempted-recon;
+    sid:9000001; rev:1;
+)
+
+# ── SSH brute force signature (volume-based, network layer) ────────
+alert tcp any any -> $HONEYPOT_NET 2222 (
+    msg:"HONEYPOT SSH brute-force pattern - high connection rate";
+    flow:to_server;
+    threshold:type both, track by_src, count 10, seconds 60;
+    classtype:attempted-admin;
+    sid:9000002; rev:1;
+)
+
+# ── Known scanner tool User-Agents ──────────────────────────────────
+alert http any any -> $HONEYPOT_NET 8080 (
+    msg:"HONEYPOT HTTP scanner tool User-Agent detected";
+    flow:to_server,established;
+    http.user_agent;
+    pcre:"/(sqlmap|nikto|nmap|nuclei|masscan|gobuster|dirbuster|wpscan|acunetix|nessus)/i";
+    classtype:attempted-recon;
+    sid:9000003; rev:1;
+)
+
+# ── Log4Shell exploitation attempt ──────────────────────────────────
+alert http any any -> $HONEYPOT_NET any (
+    msg:"HONEYPOT Log4Shell JNDI exploitation attempt";
+    flow:to_server,established;
+    pcre:"/\$\{jndi:(ldap|rmi|dns):\/\//i";
+    classtype:attempted-admin;
+    reference:cve,2021-44228;
+    sid:9000004; rev:1;
+)
+
+# ── SQL injection patterns ──────────────────────────────────────────
+alert http any any -> $HONEYPOT_NET 8080 (
+    msg:"HONEYPOT SQL injection pattern in HTTP request";
+    flow:to_server,established;
+    http.uri;
+    pcre:"/(union\s+select|sleep\(\d+\)|benchmark\(|;\s*drop\s+table)/i";
+    classtype:web-application-attack;
+    sid:9000005; rev:1;
+)
+
+# ── Unexpected egress from the honeypot subnet — should almost never
+#    fire if deploy/iptables/honeypot-egress.sh or the K8s
+#    NetworkPolicy is working; if it does fire, treat as P1 — likely
+#    means a honeypot process was compromised and is phoning home. ──
+alert tcp $HONEYPOT_NET any -> !$SIEM_NET any (
+    msg:"HONEYPOT CRITICAL - Unexpected egress from honeypot subnet (possible breakout)";
+    flow:to_server;
+    classtype:trojan-activity;
+    priority:1;
+    sid:9000006; rev:1;
+)
+
+# ── Reverse shell pattern in payload ────────────────────────────────
+alert tcp any any -> $HONEYPOT_NET any (
+    msg:"HONEYPOT Reverse shell pattern in payload";
+    flow:to_server,established;
+    content:"/bin/sh"; nocase;
+    pcre:"/(bash\s+-i|nc\s+-e|\/dev\/tcp\/)/i";
+    classtype:attempted-admin;
+    sid:9000007; rev:1;
+)

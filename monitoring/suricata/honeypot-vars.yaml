@@ -1,0 +1,12 @@
+# =====================================================================
+# monitoring/suricata/honeypot-vars.yaml
+# Variable definitions consumed by honeypot.rules ($HONEYPOT_NET,
+# $SIEM_NET). Merge into your suricata.yaml under `vars.address-groups`,
+# or include via suricata.yaml's `vars:` include mechanism depending on
+# your Suricata version. NOT validated against a running Suricata
+# instance — same caveat as honeypot.rules.
+# =====================================================================
+vars:
+  address-groups:
+    HONEYPOT_NET: "[172.28.0.0/24]"
+    SIEM_NET: "[10.0.0.0/24]"

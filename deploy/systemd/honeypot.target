@@ -1,0 +1,10 @@
+[Unit]
+Description=Honeypot Suite — all listeners
+Documentation=https://github.com/yourorg/honeypot-suite
+# Pulls in every honeypot-*.service via their own WantedBy=honeypot.target,
+# so `systemctl start honeypot.target` brings up the full stack and
+# `systemctl status honeypot.target` shows them all at a glance.
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,44 @@
+[Unit]
+Description=Honeypot Suite — Web Dashboard (management plane)
+Documentation=https://github.com/yourorg/honeypot-suite
+After=network-online.target
+PartOf=honeypot.target
+
+StartLimitIntervalSec=300
+StartLimitBurst=10
+[Service]
+Type=simple
+User=honeypot
+Group=honeypot
+WorkingDirectory=/opt/honeypot-suite
+Environment=PYTHONUNBUFFERED=1
+# Secrets injected via EnvironmentFile, NOT hardcoded here — see
+# deploy/systemd/honeypot-dashboard.env.example and the Vault section
+# in hardening/README.md for how to populate it at deploy time.
+EnvironmentFile=/etc/honeypot-suite/dashboard.env
+ExecStart=/opt/honeypot-suite/.venv/bin/python run.py --dashboard-only
+
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @reboot @swap @raw-io @debug
+ReadWritePaths=/opt/honeypot-suite/data /opt/honeypot-suite/logs
+
+LimitNOFILE=4096
+MemoryMax=512M
+TasksMax=128
+
+[Install]
+WantedBy=honeypot.target

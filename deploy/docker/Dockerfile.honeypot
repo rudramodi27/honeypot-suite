@@ -1,0 +1,33 @@
+# =====================================================================
+# deploy/docker/Dockerfile.honeypot — hardened single-listener image
+# Build context: repository root (see ../../deploy/docker/docker-compose.hardened.yml)
+# =====================================================================
+FROM python:3.11-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl-dev gcc curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Fixed-UID non-root user — using a numeric UID (not just a name) means
+# `user: "10001:10001"` in compose/k8s works even before this layer's
+# /etc/passwd entry is consulted, and matches runAsUser in k8s securityContext.
+RUN groupadd -g 10001 honeypot && useradd -u 10001 -g 10001 -M -s /usr/sbin/nologin honeypot
+
+# Writable dirs needed even under read_only:true + tmpfs /tmp — anything
+# the honeypot persists outside /tmp must be the mounted /data volume,
+# not baked into the image filesystem.
+RUN mkdir -p /data && chown -R honeypot:honeypot /data /app
+
+USER honeypot
+
+# Each compose service overrides `command:` to pick which listener to run;
+# this default is just a safe no-op so `docker build` + bare `docker run`
+# doesn't accidentally bind every port in one container.
+CMD ["python", "-c", "print('Specify a command: e.g. python -c \"import ssh_honeypot; ssh_honeypot.start(port=2222)\"')"]

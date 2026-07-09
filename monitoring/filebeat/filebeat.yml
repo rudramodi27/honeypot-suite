@@ -1,0 +1,71 @@
+# =====================================================================
+# monitoring/filebeat/filebeat.yml
+# Ships honeypot JSON logs + the master log to Logstash for ELK ingest.
+# NOT validated against a live Filebeat binary/Logstash instance in
+# this exercise (no ELK stack available in this build environment) —
+# checked for valid YAML structure against Filebeat's documented schema
+# only. Run `filebeat test config` and `filebeat test output` against
+# your real Logstash endpoint before trusting this in production.
+# =====================================================================
+
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /opt/honeypot-suite/logs/honeypot_master.log
+      - /opt/honeypot-suite/logs/mitre_mappings.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: event
+    fields:
+      log_type: honeypot_event
+      environment: production
+    fields_under_root: true
+
+  - type: log
+    enabled: true
+    paths:
+      - /opt/honeypot-suite/alerts/alerts.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    fields:
+      log_type: honeypot_alert
+      environment: production
+    fields_under_root: true
+
+# ── Output: Logstash (preferred — lets the pipeline below enrich/parse
+#    before indexing). Swap to output.elasticsearch directly if you
+#    don't need the Logstash transform stage. ──────────────────────
+output.logstash:
+  hosts: ["logstash.internal:5044"]
+  ssl.enabled: true
+  ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+  ssl.certificate: "/etc/filebeat/certs/filebeat.crt"
+  ssl.key: "/etc/filebeat/certs/filebeat.key"
+
+# ── Alternative: direct-to-Elasticsearch (skip Logstash) ───────────
+# output.elasticsearch:
+#   hosts: ["https://elasticsearch.internal:9200"]
+#   protocol: "https"
+#   ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
+#   api_key: "${ES_API_KEY}"
+#   index: "honeypot-events-%{+yyyy.MM.dd}"
+
+# ── Alternative: Splunk HEC instead of ELK ──────────────────────────
+# output.splunk:
+#   hosts: ["splunk.internal:8088"]
+#   token: "${SPLUNK_HEC_TOKEN}"
+#   ssl.verification_mode: full
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat.log
+  keepfiles: 7
+  permissions: 0640
+
+queue.mem:
+  events: 4096
+  flush.min_events: 512
+  flush.timeout: 5s

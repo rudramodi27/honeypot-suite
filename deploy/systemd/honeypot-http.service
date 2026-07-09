@@ -1,0 +1,57 @@
+[Unit]
+Description=Honeypot Suite — HTTP Listener
+Documentation=https://github.com/yourorg/honeypot-suite
+After=network-online.target
+Wants=network-online.target
+PartOf=honeypot.target
+
+StartLimitIntervalSec=300
+StartLimitBurst=10
+[Service]
+Type=simple
+# Dedicated non-root system account — create once with:
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin honeypot
+User=honeypot
+Group=honeypot
+WorkingDirectory=/opt/honeypot-suite
+Environment=PYTHONUNBUFFERED=1
+Environment=HONEYPOT__SERVICES__HTTP__PORT=8080
+ExecStart=/opt/honeypot-suite/.venv/bin/python -c "import http_honeypot, time; http_honeypot.start(port=8080); time.sleep(1e9)"
+
+# No special capabilities needed — listener port is >1024
+CapabilityBoundingSet=
+
+# ── Restart policy ──────────────────────────────────────────────
+Restart=on-failure
+RestartSec=5
+
+# ── Sandboxing (systemd-level seccomp/namespace hardening — the
+#    bare-metal/VM equivalent of the container securityContext) ──
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources @mount @reboot @swap @raw-io @debug
+ReadWritePaths=/opt/honeypot-suite/data /opt/honeypot-suite/logs
+
+# Resource limits — bound what a single compromised listener can consume
+LimitNOFILE=4096
+MemoryMax=256M
+TasksMax=128
+
+[Install]
+WantedBy=honeypot.target

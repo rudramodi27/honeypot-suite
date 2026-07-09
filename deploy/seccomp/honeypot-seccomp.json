@@ -1,0 +1,61 @@
+{
+  "_comment": "Custom seccomp profile for honeypot containers. Base: Docker's default profile, narrowed for a Python TCP/UDP listener workload. NOT validated against a live container runtime in this exercise (no Docker daemon in this build environment) — test with `docker run --security-opt seccomp=honeypot-seccomp.json` and watch for EPERM/ENOSYS errors before relying on this in production; an overly strict profile fails closed (the honeypot won't start) rather than open, but it must still be verified against the actual interpreter + libc syscalls used at runtime.",
+  "defaultAction": "SCMP_ACT_ERRNO",
+  "defaultErrnoRet": 1,
+  "archMap": [
+    {
+      "architecture": "SCMP_ARCH_X86_64",
+      "subArchitectures": ["SCMP_ARCH_X86", "SCMP_ARCH_X32"]
+    }
+  ],
+  "syscalls": [
+    {
+      "comment": "Core process/memory management the Python interpreter needs",
+      "names": [
+        "read", "write", "close", "fstat", "lstat", "stat", "newfstatat",
+        "mmap", "munmap", "mprotect", "brk", "rt_sigaction", "rt_sigprocmask",
+        "rt_sigreturn", "ioctl", "access", "pipe", "pipe2", "select", "poll",
+        "ppoll", "epoll_create1", "epoll_ctl", "epoll_wait", "epoll_pwait",
+        "exit", "exit_group", "clone", "clone3", "execve", "wait4", "kill",
+        "uname", "fcntl", "getcwd", "readlink", "getrandom", "gettid",
+        "futex", "sched_yield", "sched_getaffinity", "set_tid_address",
+        "set_robust_list", "rseq", "prlimit64", "arch_prctl", "openat",
+        "lseek", "dup", "dup2", "dup3", "getpid", "getppid", "getuid",
+        "geteuid", "getgid", "getegid", "umask", "clock_gettime",
+        "clock_nanosleep", "nanosleep", "gettimeofday"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Networking — required for the honeypot's actual job (accept connections)",
+      "names": [
+        "socket", "socketpair", "connect", "accept", "accept4", "bind",
+        "listen", "setsockopt", "getsockopt", "getsockname", "getpeername",
+        "sendto", "recvfrom", "sendmsg", "recvmsg", "shutdown"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Filesystem ops scoped to the app's own writable /data + /tmp (the kernel doesn't path-scope syscalls, so this only limits WHICH syscalls run, not WHERE — pair with read_only:true + tmpfs + a non-root UID owning only /data so there's nothing sensitive to reach even if these run)",
+      "names": [
+        "openat2", "unlink", "unlinkat", "rename", "renameat", "renameat2",
+        "mkdir", "mkdirat", "chmod", "fchmod", "fchmodat", "chown",
+        "fchown", "fchownat", "statx", "getdents64", "flock", "ftruncate"
+      ],
+      "action": "SCMP_ACT_ALLOW"
+    },
+    {
+      "comment": "Explicitly-named DENY for syscalls associated with privilege escalation / container breakout primitives — redundant with defaultAction:ERRNO but documents intent",
+      "names": [
+        "ptrace", "process_vm_readv", "process_vm_writev", "mount",
+        "umount2", "pivot_root", "init_module", "finit_module",
+        "delete_module", "kexec_load", "kexec_file_load", "reboot",
+        "swapon", "swapoff", "setns", "unshare", "personality",
+        "perf_event_open", "bpf", "userfaultfd", "add_key", "request_key",
+        "keyctl", "acct"
+      ],
+      "action": "SCMP_ACT_ERRNO",
+      "errnoRet": 1
+    }
+  ]
+}

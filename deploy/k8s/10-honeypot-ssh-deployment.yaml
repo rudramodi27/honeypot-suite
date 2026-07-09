@@ -1,0 +1,96 @@
+# =====================================================================
+# deploy/k8s/10-honeypot-ssh-deployment.yaml
+# NOT applied against a live cluster in this exercise — see the
+# validation note at the bottom of 00-namespace-and-networkpolicy.yaml,
+# which applies to every manifest in this directory.
+# =====================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: honeypot-ssh
+  namespace: honeypot
+  labels:
+    app.kubernetes.io/name: honeypot-ssh
+    app.kubernetes.io/component: honeypot-listener
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: honeypot-ssh
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: honeypot-ssh
+        app.kubernetes.io/component: honeypot-listener
+    spec:
+      automountServiceAccountToken: false   # honeypot pods never need to talk to the K8s API
+      securityContext:                      # pod-level defaults, applied to all containers
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: Localhost
+          localhostProfile: profiles/honeypot-seccomp.json   # relative to kubelet's seccomp root; copy deploy/seccomp/honeypot-seccomp.json there first
+      containers:
+        - name: ssh-honeypot
+          image: honeypot-suite:latest          # built from deploy/docker/Dockerfile.honeypot
+          command: ["python", "-c", "import ssh_honeypot, time; ssh_honeypot.start(port=2222); time.sleep(1e9)"]
+          ports:
+            - containerPort: 2222
+              protocol: TCP
+          securityContext:                       # container-level — belt and suspenders with the pod-level block above
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop: ["ALL"]
+            # SELinux label (RHEL/OpenShift clusters) — uncomment if your
+            # nodes run SELinux in enforcing mode with a matching policy
+            # module loaded (see hardening/selinux/honeypot.te):
+            # seLinuxOptions:
+            #   type: honeypot_container_t
+          env:
+            - name: HONEYPOT__SERVICES__SSH__PORT
+              value: "2222"
+            - name: HONEYPOT__DATABASE__URL
+              valueFrom:
+                secretKeyRef:
+                  name: honeypot-db-credentials
+                  key: database_url
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: /data
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits:   { cpu: "250m", memory: "256Mi" }
+          livenessProbe:
+            tcpSocket: { port: 2222 }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket: { port: 2222 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 32Mi }
+        - name: data
+          persistentVolumeClaim:
+            claimName: honeypot-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: honeypot-ssh
+  namespace: honeypot
+spec:
+  selector:
+    app.kubernetes.io/name: honeypot-ssh
+  ports:
+    - port: 2222
+      targetPort: 2222
+  type: ClusterIP   # fronted by a cloud LoadBalancer/Ingress at the edge, not directly NodePort-exposed

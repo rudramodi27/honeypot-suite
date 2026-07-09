@@ -1,0 +1,31 @@
+<svg viewBox="0 0 240 70" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="lcfTitle">
+  <title id="lcfTitle">Laxmi Chit Fund — Trust Engineered. Mostly.</title>
+  <defs>
+    <linearGradient id="coinGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f3d374"/>
+      <stop offset="55%" stop-color="#c9a227"/>
+      <stop offset="100%" stop-color="#8a6d15"/>
+    </linearGradient>
+    <linearGradient id="navyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#163b6b"/>
+      <stop offset="100%" stop-color="#0b2140"/>
+    </linearGradient>
+  </defs>
+
+  <!-- mark -->
+  <circle cx="35" cy="35" r="32" fill="url(#navyGrad)"/>
+  <circle cx="35" cy="35" r="32" fill="none" stroke="url(#coinGrad)" stroke-width="2.5"/>
+  <!-- ascending bars forming an abstract "L" / growth motif -->
+  <rect x="20" y="38" width="7" height="14" rx="1.5" fill="url(#coinGrad)"/>
+  <rect x="30" y="30" width="7" height="22" rx="1.5" fill="url(#coinGrad)"/>
+  <rect x="40" y="20" width="7" height="32" rx="1.5" fill="#f3d374"/>
+  <!-- tiny coin dot easter egg: a "smiling" rupee dot orbiting the mark -->
+  <circle cx="49" cy="17" r="4.2" fill="url(#coinGrad)"/>
+  <path d="M47.3 17.4 q1.7 1.6 3.4 0" stroke="#0b2140" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+  <circle cx="47.6" cy="16.1" r="0.55" fill="#0b2140"/>
+  <circle cx="50.3" cy="16.1" r="0.55" fill="#0b2140"/>
+
+  <!-- wordmark -->
+  <text x="76" y="33" font-family="Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" fill="#0b2140">Laxmi Chit Fund</text>
+  <text x="76" y="48" font-family="Arial, sans-serif" font-size="9" letter-spacing="2.5" fill="#8a6d15">TRUST&#8202;·&#8202;ENGINEERED&#8202;·&#8202;MOSTLY</text>
+</svg>

@@ -1,0 +1,205 @@
+version: "3.9"
+
+# =====================================================================
+# Hardened Honeypot Deployment — Network-Segregated, Deny-All Egress
+# =====================================================================
+# Network model:
+#   honeypot-net   : internal-only bridge (internal: true → Docker drops a
+#                    default route out; containers can talk to each other
+#                    and the host-side iptables-managed gateway, but get
+#                    NO outbound internet path by default).
+#   egress-allow   : a second, non-internal network attached ONLY to the
+#                    services that legitimately need outbound calls
+#                    (threat-intel enrichment → VirusTotal/AbuseIPDB/OTX,
+#                    Cuckoo submission). Everything else stays fully
+#                    isolated. This is the Compose-level equivalent of a
+#                    Kubernetes default-deny NetworkPolicy with a narrow
+#                    allow rule (see deploy/k8s/networkpolicy.yaml).
+#
+# This is a CONFIGURATION ARTIFACT — validated for YAML correctness and
+# internal consistency, but not deployed against a live multi-tenant
+# environment in this exercise. Review egress-allow membership before
+# production use; least privilege only works if you keep this list short.
+# =====================================================================
+
+services:
+
+  # ── SSH Honeypot (no enrichment calls → fully isolated) ─────────
+  honeypot-ssh:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.honeypot
+    container_name: hp-ssh
+    command: ["python", "-c", "import ssh_honeypot, time; ssh_honeypot.start(port=2222); time.sleep(1e9)"]
+    user: "10001:10001"               # non-root, matches deploy/docker/Dockerfile.honeypot
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+      - "seccomp:../seccomp/honeypot-seccomp.json"
+      # AppArmor (Linux hosts with AppArmor, e.g. Ubuntu/Debian):
+      #   security_opt: ["apparmor:honeypot-profile"]
+      #   load first: sudo apparmor_parser -r -W deploy/seccomp/honeypot-apparmor.profile
+      # SELinux (RHEL/CentOS/Fedora hosts) — label instead via:
+      #   security_opt: ["label:type:honeypot_container_t"]
+      #   requires the matching .te policy module compiled and loaded with semodule -i
+    environment:
+      HONEYPOT__SERVICES__SSH__PORT: "2222"
+    ports:
+      - "2222:2222"
+    networks:
+      honeypot-net: {}
+    volumes:
+      - honeypot-data:/data
+    restart: unless-stopped
+    logging: &json_log
+      driver: "json-file"
+      options: { max-size: "20m", max-file: "5" }
+
+  # ── HTTP Honeypot ─────────────────────────────────────────────────
+  honeypot-http:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.honeypot
+    container_name: hp-http
+    command: ["python", "-c", "import http_honeypot, time; http_honeypot.start(port=8080); time.sleep(1e9)"]
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+      - "seccomp:../seccomp/honeypot-seccomp.json"
+    environment:
+      HONEYPOT__SERVICES__HTTP__PORT: "8080"
+    ports: ["8080:8080"]
+    networks: { honeypot-net: {} }
+    volumes: ["honeypot-data:/data"]
+    restart: unless-stopped
+    logging: *json_log
+
+  # ── FTP Honeypot ──────────────────────────────────────────────────
+  honeypot-ftp:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.honeypot
+    container_name: hp-ftp
+    command: ["python", "-c", "import ftp_honeypot, time; ftp_honeypot.start(port=2121); time.sleep(1e9)"]
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+      - "seccomp:../seccomp/honeypot-seccomp.json"
+    environment:
+      HONEYPOT__SERVICES__FTP__PORT: "2121"
+    ports: ["2121:2121"]
+    networks: { honeypot-net: {} }
+    volumes: ["honeypot-data:/data"]
+    restart: unless-stopped
+    logging: *json_log
+
+  # ── Decoy services (MySQL/Redis/SMTP/DNS/HTTPS/Admin/ES banners) ──
+  honeypot-decoys:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.honeypot
+    container_name: hp-decoys
+    command: ["python", "-c", "import decoy_services; decoy_services.start(); import time; time.sleep(1e9)"]
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+      - "seccomp:../seccomp/honeypot-seccomp.json"
+    ports: ["3306:3306", "6379:6379", "2525:2525", "5353:5353/udp", "8443:8443", "8081:8081", "9200:9200"]
+    networks: { honeypot-net: {} }
+    volumes: ["honeypot-data:/data"]
+    restart: unless-stopped
+    logging: *json_log
+
+  # ── Threat-intel enrichment worker — the ONLY service with egress ─
+  # Calls VirusTotal/AbuseIPDB/OTX/Cuckoo. Everything it learns is
+  # written to the shared volume / DB; it has no listener ports, so
+  # it cannot be reached by an attacker who only sees the honeypot ports.
+  enrichment-worker:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.honeypot
+    container_name: hp-enrichment
+    command: ["python", "hardening/enrichment_worker.py"]
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=32m,mode=1777"]
+    cap_drop: ["ALL"]
+    security_opt:
+      - "no-new-privileges:true"
+      - "seccomp:../seccomp/honeypot-seccomp.json"
+    environment:
+      HONEYPOT__THREAT_INTEL__ABUSEIPDB__API_KEY: "${ABUSEIPDB_KEY:-}"
+      HONEYPOT__THREAT_INTEL__VIRUSTOTAL__API_KEY: "${VT_KEY:-}"
+      CUCKOO_API_URL: "${CUCKOO_API_URL:-}"
+      CUCKOO_API_TOKEN: "${CUCKOO_API_TOKEN:-}"
+    networks:
+      honeypot-net: {}
+      egress-allow: {}            # ← only this service joins the egress network
+    volumes: ["honeypot-data:/data"]
+    restart: unless-stopped
+    logging: *json_log
+
+  # ── Web Dashboard (operator-facing, not internet-exposed by default) ─
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: hp-dashboard
+    command: ["python", "run.py", "--dashboard-only"]
+    user: "10001:10001"
+    cap_drop: ["ALL"]
+    cap_add: ["NET_BIND_SERVICE"]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      HONEYPOT__DASHBOARD__SECRET_KEY: "${DASHBOARD_SECRET_KEY:?must be set}"
+      HONEYPOT__DASHBOARD__PASSWORD_HASH: "${DASHBOARD_PASSWORD_HASH:?must be set}"
+    ports: ["127.0.0.1:5000:5000"]    # bind to localhost only; reverse-proxy/VPN for remote access
+    networks: { honeypot-net: {} }
+    volumes: ["honeypot-data:/data:ro"]
+    restart: unless-stopped
+    logging: *json_log
+
+  # ── Egress gatekeeper — enforces deny-all at the network layer ───
+  # Runs once at stack startup to lock down the honeypot-net bridge's
+  # host-side iptables rules. See deploy/iptables/honeypot-egress.sh
+  # for what this actually applies; this container just triggers it
+  # with the right privileges and exits (one-shot, not a daemon).
+  egress-lockdown:
+    image: alpine:3.19
+    container_name: hp-egress-lockdown
+    network_mode: host
+    cap_add: ["NET_ADMIN"]
+    volumes:
+      - ../iptables/honeypot-egress.sh:/honeypot-egress.sh:ro
+    entrypoint: ["/bin/sh", "-c", "apk add --no-cache iptables >/dev/null && sh /honeypot-egress.sh apply"]
+    restart: "no"
+
+volumes:
+  honeypot-data:
+    driver: local
+
+networks:
+  honeypot-net:
+    driver: bridge
+    internal: true                  # ← no default route to the internet
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+  egress-allow:
+    driver: bridge
+    internal: false                 # only network with a route out
+    ipam:
+      config:
+        - subnet: 172.28.1.0/24

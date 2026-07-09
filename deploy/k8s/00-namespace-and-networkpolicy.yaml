@@ -1,0 +1,124 @@
+# =====================================================================
+# deploy/k8s/00-namespace-and-networkpolicy.yaml
+# Default-deny-all NetworkPolicy + narrow allow rules for the honeypot
+# namespace. NOT applied against a live cluster in this exercise (no
+# cluster available in this build environment) — validated for YAML
+# structure and against the NetworkPolicy v1 schema fields only; review
+# with `kubectl apply --dry-run=server` against your actual CNI (this
+# resource is a no-op unless your CNI plugin — Calico/Cilium/etc. —
+# actually enforces NetworkPolicy; the default kubenet CNI does not).
+# =====================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: honeypot
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# Default deny ALL ingress and egress for every pod in the namespace.
+# Every other NetworkPolicy in this file is an exception layered on
+# top of this baseline — nothing reaches or leaves a pod unless a
+# Policy explicitly allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: honeypot
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# Allow inbound to honeypot listener pods from anywhere (that's the
+# point of a honeypot) — but ONLY on the honeypot's own port.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-honeypot-listeners
+  namespace: honeypot
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: honeypot-listener
+  policyTypes: ["Ingress"]
+  ingress:
+    - from: []                          # any source — intentional
+      ports:
+        - protocol: TCP
+          port: 2222
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 2121
+---
+# DNS is the one thing every pod needs even under default-deny egress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-dns
+  namespace: honeypot
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Honeypot listener pods get NO other egress at all — they can accept
+# inbound attacker connections and write to the shared DB pod, nothing
+# else. This is the actual "deny-all egress" requirement; everything
+# above it is either DNS (required for cluster function) or scoped
+# inbound (the honeypot's job).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-honeypot-to-db-only
+  namespace: honeypot
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: honeypot-listener
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: database
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Only the enrichment-worker pod is allowed egress to the internet
+# (VirusTotal/AbuseIPDB/OTX/Cuckoo). Scoped to HTTPS only — adjust the
+# `to` block to your CNI's supported egress model; pure-IP-block
+# NetworkPolicy can't allowlist by DNS name, so if your CNI doesn't
+# support FQDN-based egress (e.g. Cilium's CiliumNetworkPolicy `toFQDNs`),
+# you'll need an egress proxy (e.g. squid) sitting at a known ClusterIP
+# instead of a wildcard 0.0.0.0/0 HTTPS allow like this skeleton shows.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-enrichment-worker
+  namespace: honeypot
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: enrichment-worker
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: ["169.254.169.254/32"]   # block cloud metadata endpoint explicitly
+      ports:
+        - protocol: TCP
+          port: 443

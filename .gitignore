@@ -1,0 +1,46 @@
+__pycache__/
+*.pyc
+.env
+*.db
+*.db-wal
+*.db-shm
+.migration_state.json
+logs/*.log
+alerts/*.log
+cache/*.json
+malware/samples/*
+malware/metadata/*
+sessions/*.json
+exports/*.json
+exports/*.pdf
+!**/.gitkeep
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.egg-info/
+# Private signing keys — never commit
+keys/private/*.pem
+keys/active_key.json
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Python cache
+*.pyo
+*.pyd
+
+# ZIP archives
+*.zip
+
+# Temporary files
+*.tmp
+*.bak
