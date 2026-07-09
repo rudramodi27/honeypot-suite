@@ -73,12 +73,6 @@ attacker behavior...
   <img src="assets/dashboard.png" width="100%">
 </p>
 
-### Events
-
-<p align="center">
-  <img src="assets/events.png" width="100%">
-</p>
-
 ### Attack Map
 
 <p align="center">
@@ -91,6 +85,11 @@ attacker behavior...
   <img src="assets/mitre-attack.png" width="100%">
 </p>
 
+### Events
+
+<p align="center">
+  <img src="assets/events.png" width="100%">
+</p>
 ## Why this exists
 
 Unlike many introductory honeypot implementations that primarily log attacker activity, Honeypot Suite provides a broader defensive security platform featuring threat intelligence, MITRE ATT&CK mapping, malware analysis, evidence management, and a real-time SOC dashboard.
