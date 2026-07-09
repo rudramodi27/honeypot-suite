@@ -1,5 +1,22 @@
 # Honeypot Suite
+<p align="center">
+  <img src="assets/banner.png" alt="Honeypot Suite Banner" width="100%">
+</p>
 
+<h1 align="center">Honeypot Suite</h1>
+
+<p align="center">
+Advanced Multi-Service Cybersecurity Honeypot with Real-Time Attack Monitoring
+</p>
+
+<p align="center">
+
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows-lightgrey)
+![Status](https://img.shields.io/badge/Status-Active-success)
+
+</p>
 A multi-protocol honeypot platform that captures, classifies, and exports
 attacker behavior for threat-intelligence consumption — by a SOC team, a
 CERT, or an automated detection pipeline.
